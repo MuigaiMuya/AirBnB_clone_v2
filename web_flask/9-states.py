@@ -1,50 +1,41 @@
 #!/usr/bin/python3
-'''A simple Flask web application.
-'''
-from flask import Flask, render_template
-
-from models import storage
+""" this module contains a script that starts a Flask web application
+    the web application must be listening on 0.0.0.0, port 5000
+    Routes: - /states_list """
+from models import *
+from models.base_model import BaseModel, Base
+from models.user import User
+from models.place import Place
 from models.state import State
-
-
+from models.city import City
+from models.amenity import Amenity
+from models.review import Review
+from flask import Flask, render_template
 app = Flask(__name__)
-'''The Flask application instance.'''
-app.url_map.strict_slashes = False
 
 
-@app.route('/states')
-@app.route('/states/<id>')
-def states(id=None):
-    '''The states page.'''
-    states = None
-    state = None
-    all_states = list(storage.all(State).values())
-    case = 404
-    if id is not None:
-        res = list(filter(lambda x: x.id == id, all_states))
-        if len(res) > 0:
-            state = res[0]
-            state.cities.sort(key=lambda x: x.name)
-            case = 2
+classes = {"Amenity": Amenity, "City": City,
+           "Place": Place, "Review": Review, "State": State, "User": User}
+
+
+@app.route('/states', strict_slashes=False)
+@app.route('/states/<id>', strict_slashes=False)
+def states_by_id(id=None):
+    """ display HTML page with list of states """
+    all_states = storage.all(State)
+    if id:
+        states = all_states.get('State.{}'.format(id))
     else:
-        states = all_states
-        for state in states:
-            state.cities.sort(key=lambda x: x.name)
-        states.sort(key=lambda x: x.name)
-        case = 1
-    ctxt = {
-        'states': states,
-        'state': state,
-        'case': case
-    }
-    return render_template('9-states.html', **ctxt)
+        states = all_states.values()
+    # ^ fetches states data from storage engine, then in line below,
+    # those states are passed into the template
+    return render_template('9-states.html', states=states)
 
 
 @app.teardown_appcontext
-def flask_teardown(exc):
-    '''The Flask app/request context end event listener.'''
+def remove_SQLalc_session(exception):
+    """ close storage when tear down is called """
     storage.close()
 
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port='5000')
+    app.run(host='0.0.0.0', port=5000)
